@@ -13,7 +13,7 @@ Vagrant.configure("2") do |config|
   config.vm.disk :disk, size: "10GB", name: "disk2"
   config.vm.disk :disk, size: "10GB", name: "disk3"
 
-  config.vm.hostname = "p01Antony"
+  config.vm.hostname = "p01_Antony_p02_Ryann"
 
   config.vm.network "private_network", ip: "192.168.57.10"
 
