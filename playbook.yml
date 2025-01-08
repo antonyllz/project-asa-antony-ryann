@@ -1,0 +1,211 @@
+---
+- hosts: all
+  become: true
+  tasks:
+    - name: Realizar atualização completa do sistema operacional
+      apt:
+        update_cache: yes
+        upgrade: dist
+
+    - name: Configurar o hostname
+      hostname:
+        name: "p01_Antony_p02_Ryann"
+
+    - name: Criar usuário Antony
+      user:
+        name: "Antony"
+        state: present
+        shell: /bin/bash
+    
+    - name: Criar usuário Ryann
+      user:
+        name: "Ryann"
+        state: present
+        shell: /bin/bash
+
+
+    - name: Criar arquivo de banner de acesso restrito
+      copy:
+        dest: /etc/issue.net
+        content: |
+          Acesso restrito apenas à pessoas com autorização expressa
+          Seu acesso está sendo monitorado !!!
+        owner: root
+        group: root
+        mode: '0644'
+
+    - name: Configurar o SSH para usar o banner
+      lineinfile:
+        path: /etc/ssh/sshd_config
+        regexp: '^#?Banner'
+        line: 'Banner /etc/issue.net'
+
+    - name: Reiniciar o serviço SSH para aplicar a configuração do banner
+      service:
+        name: ssh
+        state: restarted
+
+    - name: Adicionar grupo "ifpb" ao arquivo sudoers
+      lineinfile:
+        path: /etc/sudoers
+        regexp: '^%ifpb'
+        line: '%ifpb ALL=(ALL) NOPASSWD:ALL'
+        validate: '/usr/sbin/visudo -cf %s'
+
+    - name: Bloquear o acesso SSH para o usuário root
+      lineinfile:
+        path: /etc/ssh/sshd_config
+        regexp: '^#?PermitRootLogin'
+        line: 'PermitRootLogin no'
+
+    - name: Permitir apenas autenticação por chave pública no SSH
+      lineinfile:
+        path: /etc/ssh/sshd_config
+        regexp: '^#?PasswordAuthentication'
+        line: 'PasswordAuthentication no'
+
+    - name: Permitir acesso apenas para usuários do grupo acesso_ssh
+      lineinfile:
+        path: /etc/ssh/sshd_config
+        regexp: '^#?AllowGroups'
+        line: 'AllowGroups acesso_ssh'
+
+    - name: Gerar chave SSH para o usuário Antony
+      user:
+        name: Antony
+        generate_ssh_key: yes
+        ssh_key_bits: 2048
+        ssh_key_file: "/home/Antony/.ssh/id_rsa"
+      become: yes
+      become_user: Antony
+
+  - name: Gerar chave SSH para o usuário Ryann
+      user:
+        name: Ryann
+        generate_ssh_key: yes
+        ssh_key_bits: 2048
+        ssh_key_file: "/home/Ryann/.ssh/id_rsa"
+      become: yes
+      become_user: Ryann
+
+    - name: Reiniciar o serviço SSH para aplicar as novas configurações
+      service:
+        name: ssh
+        state: restarted
+
+    - name: Instalar pacotes necessários para LVM
+      apt:
+        name: lvm2
+        state: present
+
+    - name: Criar Physical Volume (PV) nos três discos
+      lvol:
+        pv: "{{ item }}"
+        state: present
+      loop:
+        - /dev/sda
+        - /dev/sdb
+        - /dev/sdc
+
+    - name: Criar Volume Group "dados"
+      lvol:
+        vg: dados
+        pvs:
+          - /dev/sda
+          - /dev/sdb
+          - /dev/sdc
+        state: present
+
+    - name: Criar Logical Volume "sistema" com 15GB
+      lvol:
+        vg: dados
+        lv: sistema
+        size: 15G
+        state: present
+
+    - name: Formatar o Logical Volume "sistema" no formato ext4
+      filesystem:
+        fstype: ext4
+        dev: /dev/dados/sistema
+
+    - name: Criar ponto de montagem /dados
+      file:
+        path: /dados
+        state: directory
+
+    - name: Montar o Logical Volume "sistema" no diretório /dados
+      mount:
+        name: /dados
+        src: /dev/dados/sistema
+        fstype: ext4
+        state: mounted
+
+    - name: Configurar montagem automática do Logical Volume "sistema" no /etc/fstab
+      mount:
+        name: /dados
+        src: /dev/dados/sistema
+        fstype: ext4
+        opts: defaults
+        state: present
+
+    - name: Instalar pacotes necessários para o NFS
+      apt:
+        name: nfs-kernel-server
+        state: present
+
+    - name: Criar diretório /dados/nfs
+      file:
+        path: /dados/nfs
+        state: directory
+        owner: root
+        group: root
+        mode: '0755'
+
+    - name: Criar usuário nfs-ifpb sem shell
+      user:
+        name: nfs-ifpb
+        state: present
+        shell: /usr/sbin/nologin
+
+    - name: Configurar as permissões do diretório /dados/nfs
+      file:
+        path: /dados/nfs
+        owner: nfs-ifpb
+        group: nfs-ifpb
+        mode: '0770'
+
+    - name: Configurar exportação NFS
+      lineinfile:
+        path: /etc/exports
+        regexp: '^/dados/nfs'
+        line: '/dados/nfs 192.168.57.0/24(rw,sync,no_subtree_check,all_squash,anonuid=1001,anongid=1001)'
+    
+    - name: Reiniciar o serviço NFS para aplicar as mudanças
+      service:
+        name: nfs-kernel-server
+        state: restarted
+
+    - name: Forçar o esvaziamento do buffer de memória para gravações imediatas no disco
+      lineinfile:
+        path: /etc/exports
+        regexp: '^/dados/nfs'
+        line: '/dados/nfs 192.168.57.0/24(rw,sync,no_subtree_check,all_squash,anonuid=1001,anongid=1001,flush)'
+
+    - name: Exportar as novas configurações NFS
+      command: exportfs -a
+
+    - name: Verificar se a exportação do NFS foi configurada corretamente
+      command: exportfs -v
+      register: exportfs_output
+
+    - name: Exibir as exportações do NFS
+      debug:
+        var: exportfs_output.stdout_lines
+
+- name: Criar script para registrar acessos no arquivo /dados/nfs/acessos
+  copy:
+    dest: /etc/profile.d/registrar_acessos.sh
+    content: |
+      #!/bin/bash
+      echo "$(date '+%Y-%m-%d %H:%M'); $(whoami); $(tty); $(hostname -I | awk '{print $1}')" >> /dados/nfs/acessos
+    mode: '0755'
