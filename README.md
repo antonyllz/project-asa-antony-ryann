@@ -34,30 +34,29 @@ O `Vagrantfile` é responsável por definir a configuração da máquina virtual
    config.vm.box = "generic/debian12"
 Configuração do Provider VirtualBox: Aqui definimos as configurações do provider. Especificamos o nome da VM (p01_Ryann_Antony) e a memória alocada (1024 MB).
 
-
-config.vm.provider "virtualbox" do |vb|
+`config.vm.provider "virtualbox" do |vb|
   vb.name = "p01_Ryann_Antony"
   vb.memory = 1024
-end
+end`
 Discos adicionais: Três discos virtuais de 15 GB são adicionados à máquina virtual, para simular um ambiente com mais de um disco. Esses discos serão utilizados para a configuração de LVM mais adiante no playbook.
 
 
 
-config.vm.disk :disk, size: "15GB", name: "disk1"
+`config.vm.disk :disk, size: "15GB", name: "disk1"
 config.vm.disk :disk, size: "15GB", name: "disk2"
-config.vm.disk :disk, size: "15GB", name: "disk3"
+config.vm.disk :disk, size: "15GB", name: "disk3"`
 Configuração de Rede: Definimos uma rede privada com o IP 192.168.57.10, que permite que a máquina virtual se conecte a outras máquinas na rede interna.
 
 
 
-config.vm.network "private_network", ip: "192.168.57.10"
+`config.vm.network "private_network", ip: "192.168.57.10"`
 Provisionamento com Ansible: O playbook do Ansible será executado automaticamente após o provisionamento da máquina. O arquivo do playbook é playbook.yml.
 
 
 
-config.vm.provision "ansible" do |ansible|
+`config.vm.provision "ansible" do |ansible|
   ansible.playbook = "playbook.yml"
-end
+end`
 Playbook Ansible
 O playbook.yml realiza a configuração automatizada da máquina virtual. Abaixo, explico cada parte do playbook.
 
@@ -66,37 +65,37 @@ Atualização do Sistema Operacional: Esta tarefa atualiza todos os pacotes do s
 
 
 
-- name: Realizar atualização completa do sistema operacional
+`- name: Realizar atualização completa do sistema operacional
   apt:
     update_cache: yes
-    upgrade: dist
+    upgrade: dist`
 Configuração do Hostname: A tarefa altera o hostname da máquina virtual para p01_Ryann_Antony, garantindo que a VM tenha um nome claro e reconhecível.
 
 
 
-- name: Configurar o hostname
+`- name: Configurar o hostname
   hostname:
-    name: "p01_Ryann_Antony"
+    name: "p01_Ryann_Antony"`
 Criação de Usuários: Cria os usuários Antony e Ryann com o shell /bin/bash, permitindo que ambos acessem a máquina virtual.
 
 
 
-- name: Criar usuário Antony
+`- name: Criar usuário Antony
   user:
     name: "Antony"
     state: present
-    shell: /bin/bash
+    shell: /bin/bash`
 
-- name: Criar usuário Ryann
+`- name: Criar usuário Ryann
   user:
     name: "Ryann"
     state: present
-    shell: /bin/bash
+    shell: /bin/bash`
 Criação de Banner de Acesso: Um banner de acesso é criado no arquivo /etc/issue.net, que será exibido sempre que um usuário tentar acessar a máquina via SSH. Isso informa aos usuários que o acesso é monitorado.
 
 
 
-- name: Criar arquivo de banner de acesso restrito
+`- name: Criar arquivo de banner de acesso restrito
   copy:
     dest: /etc/issue.net
     content: |
@@ -104,50 +103,50 @@ Criação de Banner de Acesso: Um banner de acesso é criado no arquivo /etc/iss
       Seu acesso está sendo monitorado !!!
     owner: root
     group: root
-    mode: '0644'
+    mode: '0644'`
 Configuração do SSH: Configurações de segurança do SSH são aplicadas:
 
 Exibição do banner no SSH.
 Bloqueio do login do usuário root via SSH.
 Desativação de autenticação por senha, permitindo apenas autenticação via chave pública.
 
-- name: Configurar o SSH para usar o banner
+`- name: Configurar o SSH para usar o banner
   lineinfile:
     path: /etc/ssh/sshd_config
     regexp: '^#?Banner'
-    line: 'Banner /etc/issue.net'
+    line: 'Banner /etc/issue.net'`
 
-- name: Bloquear o acesso SSH para o usuário root
+`- name: Bloquear o acesso SSH para o usuário root
   lineinfile:
     path: /etc/ssh/sshd_config
     regexp: '^#?PermitRootLogin'
-    line: 'PermitRootLogin no'
+    line: 'PermitRootLogin no'`
 
-- name: Permitir apenas autenticação por chave pública no SSH
+`- name: Permitir apenas autenticação por chave pública no SSH
   lineinfile:
     path: /etc/ssh/sshd_config
     regexp: '^#?PasswordAuthentication'
-    line: 'PasswordAuthentication no'
+    line: 'PasswordAuthentication no'`
 
-- name: Permitir acesso apenas para usuários do grupo acesso_ssh
+`- name: Permitir acesso apenas para usuários do grupo acesso_ssh
   lineinfile:
     path: /etc/ssh/sshd_config
     regexp: '^#?AllowGroups'
-    line: 'AllowGroups acesso_ssh'
+    line: 'AllowGroups acesso_ssh'`
 Configuração de LVM (Logical Volume Management): LVM é configurado para criar volumes lógicos (LV) usando três discos de 10GB. O volume lógico sistema é criado com 15GB e montado no diretório /dados.
 
 
 
-- name: Criar Physical Volume (PV) nos três discos
+`- name: Criar Physical Volume (PV) nos três discos
   lvol:
     pv: "{{ item }}"
     state: present
   loop:
     - /dev/sda
     - /dev/sdb
-    - /dev/sdc
+    - /dev/sdc`
 
-- name: Criar Volume Group "dados"
+`- name: Criar Volume Group "dados"
   lvol:
     vg: dados
     pvs:
@@ -155,58 +154,57 @@ Configuração de LVM (Logical Volume Management): LVM é configurado para criar
       - /dev/sdb
       - /dev/sdc
     state: present
-
-- name: Criar Logical Volume "sistema" com 15GB
+`
+`- name: Criar Logical Volume "sistema" com 15GB
   lvol:
     vg: dados
     lv: sistema
     size: 15G
     state: present
-
-- name: Formatar o Logical Volume "sistema" no formato ext4
+`
+`- name: Formatar o Logical Volume "sistema" no formato ext4
   filesystem:
     fstype: ext4
     dev: /dev/dados/sistema
-
-- name: Montar o Logical Volume "sistema" no diretório /dados
+`
+`- name: Montar o Logical Volume "sistema" no diretório /dados
   mount:
     name: /dados
     src: /dev/dados/sistema
     fstype: ext4
     state: mounted
-Configuração de NFS: O diretório /dados/nfs é configurado para compartilhamento via NFS, permitindo que outros sistemas possam montar este diretório como uma rede compartilhada.
+`Configuração de NFS: O diretório /dados/nfs é configurado para compartilhamento via NFS, permitindo que outros sistemas possam montar este diretório como uma rede compartilhada.
 
 
 
-- name: Instalar pacotes necessários para o NFS
+`- name: Instalar pacotes necessários para o NFS
   apt:
     name: nfs-kernel-server
     state: present
-
-- name: Configurar as permissões do diretório /dados/nfs
+`
+`- name: Configurar as permissões do diretório /dados/nfs
   file:
     path: /dados/nfs
     owner: nfs-ifpb
     group: nfs-ifpb
     mode: '0770'
-
-- name: Configurar exportação NFS
+`
+`- name: Configurar exportação NFS
   lineinfile:
     path: /etc/exports
     regexp: '^/dados/nfs'
     line: '/dados/nfs 192.168.57.0/24(rw,sync,no_subtree_check,all_squash,anonuid=1001,anongid=1001)'
-
-- name: Exportar as novas configurações NFS
+`
+`- name: Exportar as novas configurações NFS
   command: exportfs -a
-Monitoramento de Acesso: A tarefa cria um script para monitorar e registrar os acessos aos diretórios NFS. Isso é feito utilizando a configuração de exportação NFS.
+`Monitoramento de Acesso: A tarefa cria um script para monitorar e registrar os acessos aos diretórios NFS. Isso é feito utilizando a configuração de exportação NFS.
 
 Como Executar o Projeto
 Instale o Vagrant e o VirtualBox no seu sistema.
 Clone este repositório ou baixe os arquivos.
 Execute o seguinte comando no diretório onde o Vagrantfile está localizado:
 bash
-'''
-vagrant up
-
+`vagrant up
+`
 Isso provisionará a máquina virtual com as especificações do projeto, e o Ansible será automaticamente invocado para configurar o sistema.
 
