@@ -1,23 +1,26 @@
 ---
 - hosts: all
-  become: true
   tasks:
     - name: Realizar atualização completa do sistema operacional
+      become: true
       apt:
         update_cache: yes
         upgrade: dist
 
     - name: Configurar o hostname
+      become: true
       hostname:
         name: "p01_Antony_p02_Ryann"
 
     - name: Criar usuário Antony
+      become: true
       user:
         name: "Antony"
         state: present
         shell: /bin/bash
     
     - name: Criar usuário Ryann
+      become: true
       user:
         name: "Ryann"
         state: present
@@ -25,6 +28,7 @@
 
 
     - name: Criar arquivo de banner de acesso restrito
+      become: true
       copy:
         dest: /etc/issue.net
         content: |
@@ -35,17 +39,20 @@
         mode: '0644'
 
     - name: Configurar o SSH para usar o banner
+      become: true
       lineinfile:
         path: /etc/ssh/sshd_config
         regexp: '^#?Banner'
         line: 'Banner /etc/issue.net'
 
     - name: Reiniciar o serviço SSH para aplicar a configuração do banner
+      become: true
       service:
         name: ssh
         state: restarted
 
     - name: Adicionar grupo "ifpb" ao arquivo sudoers
+      become: true
       lineinfile:
         path: /etc/sudoers
         regexp: '^%ifpb'
@@ -53,24 +60,28 @@
         validate: '/usr/sbin/visudo -cf %s'
 
     - name: Bloquear o acesso SSH para o usuário root
+      become: true
       lineinfile:
         path: /etc/ssh/sshd_config
         regexp: '^#?PermitRootLogin'
         line: 'PermitRootLogin no'
 
     - name: Permitir apenas autenticação por chave pública no SSH
+      become: true
       lineinfile:
         path: /etc/ssh/sshd_config
         regexp: '^#?PasswordAuthentication'
         line: 'PasswordAuthentication no'
 
     - name: Permitir acesso apenas para usuários do grupo acesso_ssh
+      become: true
       lineinfile:
         path: /etc/ssh/sshd_config
         regexp: '^#?AllowGroups'
         line: 'AllowGroups acesso_ssh'
 
     - name: Gerar chave SSH para o usuário Antony
+      become: true
       user:
         name: Antony
         generate_ssh_key: yes
@@ -79,26 +90,30 @@
       become: yes
       become_user: Antony
 
-  - name: Gerar chave SSH para o usuário Ryann
-      user:
-        name: Ryann
-        generate_ssh_key: yes
-        ssh_key_bits: 2048
-        ssh_key_file: "/home/Ryann/.ssh/id_rsa"
-      become: yes
-      become_user: Ryann
+    - name: Gerar chave SSH para o usuário Ryann
+        become: true
+        user:
+          name: Ryann
+          generate_ssh_key: yes
+          ssh_key_bits: 2048
+          ssh_key_file: "/home/Ryann/.ssh/id_rsa"
+        become: yes
+        become_user: Ryann
 
     - name: Reiniciar o serviço SSH para aplicar as novas configurações
+      become: true
       service:
         name: ssh
         state: restarted
 
     - name: Instalar pacotes necessários para LVM
+      become: true
       apt:
         name: lvm2
         state: present
 
     - name: Criar Physical Volume (PV) nos três discos
+      become: true
       lvol:
         pv: "{{ item }}"
         state: present
@@ -108,6 +123,7 @@
         - /dev/sdc
 
     - name: Criar Volume Group "dados"
+      become: true
       lvol:
         vg: dados
         pvs:
@@ -117,6 +133,7 @@
         state: present
 
     - name: Criar Logical Volume "sistema" com 15GB
+      become: true
       lvol:
         vg: dados
         lv: sistema
@@ -124,16 +141,19 @@
         state: present
 
     - name: Formatar o Logical Volume "sistema" no formato ext4
+      become: true
       filesystem:
         fstype: ext4
         dev: /dev/dados/sistema
 
     - name: Criar ponto de montagem /dados
+      become: true
       file:
         path: /dados
         state: directory
 
     - name: Montar o Logical Volume "sistema" no diretório /dados
+      become: true
       mount:
         name: /dados
         src: /dev/dados/sistema
@@ -141,6 +161,7 @@
         state: mounted
 
     - name: Configurar montagem automática do Logical Volume "sistema" no /etc/fstab
+      become: true
       mount:
         name: /dados
         src: /dev/dados/sistema
@@ -149,11 +170,13 @@
         state: present
 
     - name: Instalar pacotes necessários para o NFS
+      become: true
       apt:
         name: nfs-kernel-server
         state: present
 
     - name: Criar diretório /dados/nfs
+      become: true
       file:
         path: /dados/nfs
         state: directory
@@ -162,12 +185,14 @@
         mode: '0755'
 
     - name: Criar usuário nfs-ifpb sem shell
+      become: true
       user:
         name: nfs-ifpb
         state: present
         shell: /usr/sbin/nologin
 
     - name: Configurar as permissões do diretório /dados/nfs
+      become: true
       file:
         path: /dados/nfs
         owner: nfs-ifpb
@@ -175,37 +200,50 @@
         mode: '0770'
 
     - name: Configurar exportação NFS
+      become: true
       lineinfile:
         path: /etc/exports
         regexp: '^/dados/nfs'
         line: '/dados/nfs 192.168.57.0/24(rw,sync,no_subtree_check,all_squash,anonuid=1001,anongid=1001)'
     
     - name: Reiniciar o serviço NFS para aplicar as mudanças
+      become: true
       service:
         name: nfs-kernel-server
         state: restarted
 
     - name: Forçar o esvaziamento do buffer de memória para gravações imediatas no disco
+      become: true
       lineinfile:
         path: /etc/exports
         regexp: '^/dados/nfs'
         line: '/dados/nfs 192.168.57.0/24(rw,sync,no_subtree_check,all_squash,anonuid=1001,anongid=1001,flush)'
 
     - name: Exportar as novas configurações NFS
+      become: true
       command: exportfs -a
 
     - name: Verificar se a exportação do NFS foi configurada corretamente
+      become: true
       command: exportfs -v
       register: exportfs_output
 
     - name: Exibir as exportações do NFS
+      become: true
       debug:
         var: exportfs_output.stdout_lines
 
-- name: Criar script para registrar acessos no arquivo /dados/nfs/acessos
-  copy:
-    dest: /etc/profile.d/registrar_acessos.sh
-    content: |
-      #!/bin/bash
-      echo "$(date '+%Y-%m-%d %H:%M'); $(whoami); $(tty); $(hostname -I | awk '{print $1}')" >> /dados/nfs/acessos
-    mode: '0755'
+    - name: Criar script para registrar acessos no arquivo /dados/nfs/acessos
+      become: true
+      copy:
+        dest: /etc/profile.d/registrar_acessos.sh
+        content: |
+          #!/bin/bash
+          echo "$(date '+%Y-%m-%d %H:%M'); $(whoami); $(tty); $(hostname -I | awk '{print $1}')" >> /dados/nfs/acessos
+        mode: '0755'
+    
+    - name: Reiniciar SSH
+      become: true
+      ansible.builtin.service:
+        name: sshd
+        state: restarted
