@@ -4,8 +4,8 @@
 Desenvolver competências práticas em DevOps e Infraestrutura como Código (IaC) utilizando as ferramentas Vagrant e Ansible. O objetivo é provisionar uma infraestrutura virtual e automatizar a configuração do sistema operacional e serviços essenciais.
 
 ## Integrantes da Equipe
-- Ryann
-- Antony
+- Antony César Pereira de Araújo - 20231380013
+- Jose Ryann Ferreira de Brito -  20231380032
 
 ## Professor
 - Pedro Batista de Carvalho Filho
