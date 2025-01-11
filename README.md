@@ -34,27 +34,26 @@ O `Vagrantfile` é responsável por definir a configuração da máquina virtual
    config.vm.box = "generic/debian12"
 Configuração do Provider VirtualBox: Aqui definimos as configurações do provider. Especificamos o nome da VM (p01_Ryann_Antony) e a memória alocada (1024 MB).
 
-ruby
-Copiar código
+
 config.vm.provider "virtualbox" do |vb|
   vb.name = "p01_Ryann_Antony"
   vb.memory = 1024
 end
 Discos adicionais: Três discos virtuais de 15 GB são adicionados à máquina virtual, para simular um ambiente com mais de um disco. Esses discos serão utilizados para a configuração de LVM mais adiante no playbook.
 
-ruby
+
 
 config.vm.disk :disk, size: "15GB", name: "disk1"
 config.vm.disk :disk, size: "15GB", name: "disk2"
 config.vm.disk :disk, size: "15GB", name: "disk3"
 Configuração de Rede: Definimos uma rede privada com o IP 192.168.57.10, que permite que a máquina virtual se conecte a outras máquinas na rede interna.
 
-ruby
+
 
 config.vm.network "private_network", ip: "192.168.57.10"
 Provisionamento com Ansible: O playbook do Ansible será executado automaticamente após o provisionamento da máquina. O arquivo do playbook é playbook.yml.
 
-ruby
+
 
 config.vm.provision "ansible" do |ansible|
   ansible.playbook = "playbook.yml"
@@ -65,7 +64,7 @@ O playbook.yml realiza a configuração automatizada da máquina virtual. Abaixo
 Descrição das tarefas no playbook
 Atualização do Sistema Operacional: Esta tarefa atualiza todos os pacotes do sistema, garantindo que a máquina virtual esteja com o sistema mais recente.
 
-yaml
+
 
 - name: Realizar atualização completa do sistema operacional
   apt:
@@ -73,14 +72,14 @@ yaml
     upgrade: dist
 Configuração do Hostname: A tarefa altera o hostname da máquina virtual para p01_Ryann_Antony, garantindo que a VM tenha um nome claro e reconhecível.
 
-yaml
+
 
 - name: Configurar o hostname
   hostname:
     name: "p01_Ryann_Antony"
 Criação de Usuários: Cria os usuários Antony e Ryann com o shell /bin/bash, permitindo que ambos acessem a máquina virtual.
 
-yaml
+
 
 - name: Criar usuário Antony
   user:
@@ -95,7 +94,7 @@ yaml
     shell: /bin/bash
 Criação de Banner de Acesso: Um banner de acesso é criado no arquivo /etc/issue.net, que será exibido sempre que um usuário tentar acessar a máquina via SSH. Isso informa aos usuários que o acesso é monitorado.
 
-yaml
+
 
 - name: Criar arquivo de banner de acesso restrito
   copy:
@@ -111,7 +110,6 @@ Configuração do SSH: Configurações de segurança do SSH são aplicadas:
 Exibição do banner no SSH.
 Bloqueio do login do usuário root via SSH.
 Desativação de autenticação por senha, permitindo apenas autenticação via chave pública.
-yaml
 
 - name: Configurar o SSH para usar o banner
   lineinfile:
@@ -138,7 +136,7 @@ yaml
     line: 'AllowGroups acesso_ssh'
 Configuração de LVM (Logical Volume Management): LVM é configurado para criar volumes lógicos (LV) usando três discos de 10GB. O volume lógico sistema é criado com 15GB e montado no diretório /dados.
 
-yaml
+
 
 - name: Criar Physical Volume (PV) nos três discos
   lvol:
@@ -178,7 +176,7 @@ yaml
     state: mounted
 Configuração de NFS: O diretório /dados/nfs é configurado para compartilhamento via NFS, permitindo que outros sistemas possam montar este diretório como uma rede compartilhada.
 
-yaml
+
 
 - name: Instalar pacotes necessários para o NFS
   apt:
