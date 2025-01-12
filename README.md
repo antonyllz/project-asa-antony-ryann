@@ -5,7 +5,7 @@ Desenvolver competências práticas em DevOps e Infraestrutura como Código (IaC
 
 ## Integrantes da Equipe
 - Antony César Pereira de Araújo - 20231380013
-- Jose Ryann Ferreira de Brito -  20231380032
+- Jose Ryann Ferreira de Brito - 20231380032
 
 ## Professor
 - Pedro Batista de Carvalho Filho
@@ -30,72 +30,76 @@ O `Vagrantfile` é responsável por definir a configuração da máquina virtual
 1. **Box e Provider**:
    Definimos a box `generic/debian12`, uma imagem minimalista do Debian 12, e o provider `virtualbox`, que é o VirtualBox. Isso indica que as máquinas virtuais serão executadas no VirtualBox.
 
-   ```ruby
+```ruby
    config.vm.box = "generic/debian12"
-Configuração do Provider VirtualBox: Aqui definimos as configurações do provider. Especificamos o nome da VM (p01_Ryann_Antony) e a memória alocada (1024 MB).
+   
+Configuração do Provider VirtualBox: Especificamos o nome da VM (p01_Ryann_Antony) e a memória alocada (1024 MB).
+```ruby
 
-`config.vm.provider "virtualbox" do |vb|
+config.vm.provider "virtualbox" do |vb|
   vb.name = "p01_Ryann_Antony"
   vb.memory = 1024
-end`
-Discos adicionais: Três discos virtuais de 15 GB são adicionados à máquina virtual, para simular um ambiente com mais de um disco. Esses discos serão utilizados para a configuração de LVM mais adiante no playbook.
+end
+````
+Discos adicionais: Três discos virtuais de 15 GB são adicionados à máquina virtual, para simular um ambiente com mais de um disco.
 
-
-
-`config.vm.disk :disk, size: "15GB", name: "disk1"
+```ruby
+config.vm.disk :disk, size: "15GB", name: "disk1"
 config.vm.disk :disk, size: "15GB", name: "disk2"
-config.vm.disk :disk, size: "15GB", name: "disk3"`
-Configuração de Rede: Definimos uma rede privada com o IP 192.168.57.10, que permite que a máquina virtual se conecte a outras máquinas na rede interna.
+config.vm.disk :disk, size: "15GB", name: "disk3"
+````
+Configuração de Rede: Definimos uma rede privada com o IP 192.168.57.10.
 
+   ```ruby
+config.vm.network "private_network", ip: "192.168.57.10"
+````
+Provisionamento com Ansible: O playbook do Ansible será executado automaticamente após o provisionamento da máquina.
 
-
-`config.vm.network "private_network", ip: "192.168.57.10"`
-Provisionamento com Ansible: O playbook do Ansible será executado automaticamente após o provisionamento da máquina. O arquivo do playbook é playbook.yml.
-
-
-
-`config.vm.provision "ansible" do |ansible|
+   ```ruby
+config.vm.provision "ansible" do |ansible|
   ansible.playbook = "playbook.yml"
-end`
+end
+
+````
 Playbook Ansible
-O playbook.yml realiza a configuração automatizada da máquina virtual. Abaixo, explico cada parte do playbook.
+O playbook.yml realiza a configuração automatizada da máquina virtual. Abaixo estão as tarefas principais.
 
 Descrição das tarefas no playbook
-Atualização do Sistema Operacional: Esta tarefa atualiza todos os pacotes do sistema, garantindo que a máquina virtual esteja com o sistema mais recente.
 
-
-
-`- name: Realizar atualização completa do sistema operacional
+**Atualização do Sistema Operacional: Atualiza todos os pacotes do sistema.**
+````
+```yml
+- name: Realizar atualização completa do sistema operacional
   apt:
     update_cache: yes
-    upgrade: dist`
-Configuração do Hostname: A tarefa altera o hostname da máquina virtual para p01_Ryann_Antony, garantindo que a VM tenha um nome claro e reconhecível.
+    upgrade: dist
+Configuração do Hostname: Altera o hostname da máquina virtual.
 
-
-
-`- name: Configurar o hostname
+````
+**Configuração do Hostname**
+```yml
+- name: Configurar o hostname
   hostname:
-    name: "p01_Ryann_Antony"`
-Criação de Usuários: Cria os usuários Antony e Ryann com o shell /bin/bash, permitindo que ambos acessem a máquina virtual.
-
-
-
-`- name: Criar usuário Antony
+    name: "p01_Ryann_Antony"
+````
+**Criação dos usuários**
+   ```yaml
+- name: Criar usuário Antony
   user:
     name: "Antony"
     state: present
-    shell: /bin/bash`
+    shell: /bin/bash
 
-`- name: Criar usuário Ryann
+- name: Criar usuário Ryann
   user:
     name: "Ryann"
     state: present
-    shell: /bin/bash`
-Criação de Banner de Acesso: Um banner de acesso é criado no arquivo /etc/issue.net, que será exibido sempre que um usuário tentar acessar a máquina via SSH. Isso informa aos usuários que o acesso é monitorado.
+    shell: /bin/bash
+````
+**Criação de Banner de Acesso: Cria um banner para exibição em acessos via SSH.**
 
-
-
-`- name: Criar arquivo de banner de acesso restrito
+   ```yaml
+- name: Criar arquivo de banner de acesso restrito
   copy:
     dest: /etc/issue.net
     content: |
@@ -103,50 +107,107 @@ Criação de Banner de Acesso: Um banner de acesso é criado no arquivo /etc/iss
       Seu acesso está sendo monitorado !!!
     owner: root
     group: root
-    mode: '0644'`
-Configuração do SSH: Configurações de segurança do SSH são aplicadas:
+    mode: '0644'
+````
+**Configuração do SSH: Ajusta as configurações de segurança do SSH.**
 
-Exibição do banner no SSH.
-Bloqueio do login do usuário root via SSH.
-Desativação de autenticação por senha, permitindo apenas autenticação via chave pública.
-
-`- name: Configurar o SSH para usar o banner
+   ```yaml
+- name: Configurar o SSH para usar o banner
   lineinfile:
     path: /etc/ssh/sshd_config
     regexp: '^#?Banner'
-    line: 'Banner /etc/issue.net'`
+    line: 'Banner /etc/issue.net'
 
-`- name: Bloquear o acesso SSH para o usuário root
+- name: Bloquear o acesso SSH para o usuário root
   lineinfile:
     path: /etc/ssh/sshd_config
     regexp: '^#?PermitRootLogin'
-    line: 'PermitRootLogin no'`
+    line: 'PermitRootLogin no'
 
-`- name: Permitir apenas autenticação por chave pública no SSH
+- name: Permitir apenas autenticação por chave pública no SSH
   lineinfile:
     path: /etc/ssh/sshd_config
     regexp: '^#?PasswordAuthentication'
-    line: 'PasswordAuthentication no'`
+    line: 'PasswordAuthentication no'
 
-`- name: Permitir acesso apenas para usuários do grupo acesso_ssh
+- name: Permitir acesso apenas para usuários do grupo acesso_ssh
   lineinfile:
     path: /etc/ssh/sshd_config
     regexp: '^#?AllowGroups'
-    line: 'AllowGroups acesso_ssh'`
-Configuração de LVM (Logical Volume Management): LVM é configurado para criar volumes lógicos (LV) usando três discos de 10GB. O volume lógico sistema é criado com 15GB e montado no diretório /dados.
+    line: 'AllowGroups acesso_ssh'
+
+- name: Criar diretório .ssh para Antony
+  file:
+    path: /home/Antony/.ssh
+    state: directory
+    owner: Antony
+    group: Antony
+    mode: '0700'
+
+- name: Gerar chave SSH para Antony
+  command: ssh-keygen -t rsa -b 2048 -f /home/Antony/.ssh/id_rsa -N ""
+  args:
+    creates: /home/Antony/.ssh/id_rsa
+
+- name: Configurar permissões das chaves SSH de Antony
+  file:
+    path: /home/Antony/.ssh/id_rsa
+    owner: Antony
+    group: Antony
+    mode: '0600'
+
+# Gerar chave SSH para o usuário Ryann
+- name: Criar diretório .ssh para Ryann
+  file:
+    path: /home/Ryann/.ssh
+    state: directory
+    owner: Ryann
+    group: Ryann
+    mode: '0700'
+
+- name: Gerar chave SSH para Ryann
+  command: ssh-keygen -t rsa -b 2048 -f /home/Ryann/.ssh/id_rsa -N ""
+  args:
+    creates: /home/Ryann/.ssh/id_rsa
+
+- name: Configurar permissões das chaves SSH de Ryann
+  file:
+    path: /home/Ryann/.ssh/id_rsa
+    owner: Ryann
+    group: Ryann
+    mode: '0600'
+
+- name: Adicionar chave pública de Antony ao authorized_keys
+  copy:
+    src: /home/Antony/.ssh/id_rsa.pub
+    dest: /home/Antony/.ssh/authorized_keys
+    owner: Antony
+    group: Antony
+    mode: '0644'
+
+- name: Adicionar chave pública de Ryann ao authorized_keys
+  copy:
+    src: /home/Ryann/.ssh/id_rsa.pub
+    dest: /home/Ryann/.ssh/authorized_keys
+    owner: Ryann
+    group: Ryann
+    mode: '0644'
 
 
+`````
+Configuração de LVM: Configura Logical Volume Management.
 
-`- name: Criar Physical Volume (PV) nos três discos
+   ```yaml
+- name: Criar Physical Volume (PV) nos três discos
   lvol:
     pv: "{{ item }}"
     state: present
   loop:
-    - /dev/sda
     - /dev/sdb
-    - /dev/sdc`
+    - /dev/sdc
+    - /dev/sdd
 
-`- name: Criar Volume Group "dados"
+- name: Criar Volume Group "dados"
   lvol:
     vg: dados
     pvs:
@@ -154,57 +215,65 @@ Configuração de LVM (Logical Volume Management): LVM é configurado para criar
       - /dev/sdb
       - /dev/sdc
     state: present
-`
-`- name: Criar Logical Volume "sistema" com 15GB
+
+- name: Criar Logical Volume "sistema" com 15GB
   lvol:
     vg: dados
     lv: sistema
     size: 15G
     state: present
-`
-`- name: Formatar o Logical Volume "sistema" no formato ext4
+
+- name: Formatar o Logical Volume "sistema" no formato ext4
   filesystem:
     fstype: ext4
     dev: /dev/dados/sistema
-`
-`- name: Montar o Logical Volume "sistema" no diretório /dados
+
+- name: Adicionar /dev/dados/sistema ao /etc/fstab
+      blockinfile:
+        path: /etc/fstab
+        block: |
+          /dev/dados/sistema  /dados  ext4  defaults  0  0
+
+- name: Montar o Logical Volume "sistema" no diretório /dados
   mount:
     name: /dados
     src: /dev/dados/sistema
     fstype: ext4
     state: mounted
-`Configuração de NFS: O diretório /dados/nfs é configurado para compartilhamento via NFS, permitindo que outros sistemas possam montar este diretório como uma rede compartilhada.
-
-
-
-`- name: Instalar pacotes necessários para o NFS
+````
+**Configuração de NFS: Configura o compartilhamento via NFS.**
+```yaml
+- name: Instalar pacotes necessários para o NFS
   apt:
     name: nfs-kernel-server
     state: present
-`
-`- name: Configurar as permissões do diretório /dados/nfs
+
+- name: Configurar as permissões do diretório /dados/nfs
   file:
     path: /dados/nfs
     owner: nfs-ifpb
     group: nfs-ifpb
     mode: '0770'
-`
-`- name: Configurar exportação NFS
+
+- name: Configurar exportação NFS
   lineinfile:
     path: /etc/exports
     regexp: '^/dados/nfs'
     line: '/dados/nfs 192.168.57.0/24(rw,sync,no_subtree_check,all_squash,anonuid=1001,anongid=1001)'
-`
-`- name: Exportar as novas configurações NFS
+
+- name: Exportar as novas configurações NFS
   command: exportfs -a
-`Monitoramento de Acesso: A tarefa cria um script para monitorar e registrar os acessos aos diretórios NFS. Isso é feito utilizando a configuração de exportação NFS.
+````
+**Como Executar o Projeto**
 
-Como Executar o Projeto
 Instale o Vagrant e o VirtualBox no seu sistema.
-Clone este repositório ou baixe os arquivos.
-Execute o seguinte comando no diretório onde o Vagrantfile está localizado:
-bash
-`vagrant up
-`
-Isso provisionará a máquina virtual com as especificações do projeto, e o Ansible será automaticamente invocado para configurar o sistema.
 
+Clone este repositório ou baixe os arquivos.
+
+Execute o seguinte comando no diretório onde o Vagrantfile está localizado:
+
+bash
+   ```ruby
+vagrant up
+````
+Isso provisionará a máquina virtual com as especificações do projeto, e o Ansible será automaticamente invocado para configurar o sistema.
