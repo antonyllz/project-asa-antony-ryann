@@ -68,7 +68,6 @@ Descrição das tarefas no playbook
 
 **Atualização do Sistema Operacional: Atualiza todos os pacotes do sistema.**
 ````
-```yml
 - name: Realizar atualização completa do sistema operacional
   apt:
     update_cache: yes
