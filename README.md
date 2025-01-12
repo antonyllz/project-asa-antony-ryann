@@ -72,7 +72,6 @@ Descrição das tarefas no playbook
   apt:
     update_cache: yes
     upgrade: dist
-Configuração do Hostname: Altera o hostname da máquina virtual.
 
 ````
 **Configuração do Hostname**
