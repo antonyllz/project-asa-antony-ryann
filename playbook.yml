@@ -1,5 +1,5 @@
 ---
-- hosts: all
+- hosts: localhost
   tasks:
     - name: Realizar atualização completa do sistema operacional
       become: true
@@ -40,7 +40,7 @@
           dest: /etc/motd
           content: |
             Acesso restrito apenas à pessoas com autorização expressa
-           Seu acesso está sendo monitorado !!!
+            Seu acesso está sendo monitorado !!!
        
 
     - name: Configurar o SSH para usar o banner
@@ -96,14 +96,14 @@
       become_user: Antony
 
     - name: Gerar chave SSH para o usuário Ryann
-        become: true
-        user:
-          name: Ryann
-          generate_ssh_key: yes
-          ssh_key_bits: 2048
-          ssh_key_file: "/home/Ryann/.ssh/id_rsa"
-        become: yes
-        become_user: Ryann
+      become: true
+      user:
+        name: Ryann
+        generate_ssh_key: yes
+        ssh_key_bits: 2048
+        ssh_key_file: "/home/Ryann/.ssh/id_rsa"
+      become: yes
+      become_user: Ryann
 
     - name: Reiniciar o serviço SSH para aplicar as novas configurações
       become: true
