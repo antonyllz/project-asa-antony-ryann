@@ -2,37 +2,37 @@
   hosts: all
   become: true
   tasks:
-    - name: Atualizar o cache dos pacotes
+    - name: Atualização geral nos pacotes
       ansible.builtin.apt:
         update_cache: true
 
-    - name: Realizar upgrade de todos os pacotes
+    - name: Realizar atualização completa dos pacotes
       ansible.builtin.apt:
         upgrade: dist
 
-    - name: Remover pacotes obsoletos
+    - name: Remover pacotes desnecessários
       ansible.builtin.apt:
         autoremove: true
 
-    - name: Configurar hostname
+    - name: Configuração do hostname
       ansible.builtin.hostname:
         name: p01-antony-ryann
 
-    - name: Criar usuário antony
+    - name: Criar usuário Antony
       ansible.builtin.user:
         name: antony
         state: present
         shell: /bin/bash
         generate_ssh_key: true
 
-    - name: Criar usuário ryann
+    - name: Criar usuário Ryann
       ansible.builtin.user:
         name: ryann
         state: present
         shell: /bin/bash
         generate_ssh_key: true
 
-    - name: Adicionar mensagem de saudação no login
+    - name: Adicionar mensagem de boas-vindas no login
       ansible.builtin.lineinfile:
         path: /etc/motd
         line: "Acesso restrito apenas à pessoas com autorização expressa\nSeu acesso está sendo monitorado !!!"
@@ -43,7 +43,7 @@
         name: ifpb
         state: present
 
-    - name: Adicionar usuários ao grupo ifpb
+    - name: Incluir usuários no grupo ifpb
       ansible.builtin.user:
         name: "{{ item }}"
         groups: ifpb
@@ -52,21 +52,21 @@
         - antony
         - ryann
 
-    - name: Permitir autenticação apenas por chave pública
+    - name: Permitir autenticação exclusivamente por chave pública
       ansible.builtin.replace:
         path: /etc/ssh/sshd_config
         regexp: "^#?PasswordAuthentication.*"
         replace: "PasswordAuthentication no"
       notify: Reiniciar SSH
 
-    - name: Bloquear acesso root via SSH
+    - name: Desabilitar acesso root via SSH
       ansible.builtin.replace:
         path: /etc/ssh/sshd_config
         regexp: "^#?PermitRootLogin.*"
         replace: "PermitRootLogin no"
       notify: Reiniciar SSH
 
-    - name: Permitir acesso ao grupo acesso_ssh
+    - name: Autorizar acesso ao grupo acesso_ssh
       ansible.builtin.lineinfile:
         path: /etc/ssh/sshd_config
         regexp: "^#?AllowGroups.*"
@@ -80,7 +80,7 @@
         state: present
         update_cache: true
 
-    - name: Criar Volume Group
+    - name: Criar o Volume Group
       community.general.lvg:
         vg: dados
         pvs:
@@ -88,7 +88,7 @@
           - /dev/sdc
           - /dev/sdd
 
-    - name: Criar Logical Volume
+    - name: Criar o Logical Volume
       community.general.lvol:
         vg: dados
         lv: sistema
@@ -99,19 +99,19 @@
         fstype: ext4
         dev: /dev/dados/sistema
 
-    - name: Criar diretório /dados
+    - name: Criar o diretório /dados
       ansible.builtin.file:
         path: /dados
         state: directory
         mode: "0755"
 
-    - name: Adicionar entrada ao fstab
+    - name: Adicionar linha ao fstab
       ansible.builtin.lineinfile:
         path: /etc/fstab
         line: "/dev/dados/sistema /dados ext4 defaults 0 0"
         state: present
 
-    - name: Montar partição /dados
+    - name: Montar a partição /dados
       ansible.posix.mount:
         path: /dados
         src: /dev/dados/sistema
@@ -123,13 +123,13 @@
         name: nfs-kernel-server
         state: present
 
-    - name: Criar o usuário "nfs-ifpb" com shell desabilitado
+    - name: Criar o usuário "nfs-ifpb" com shell desativado
       ansible.builtin.user:
         name: nfs-ifpb
         shell: /usr/sbin/nologin
         state: present
 
-    - name: Obter informações do usuário "nfs-ifpb"
+    - name: Obter dados do usuário "nfs-ifpb"
       ansible.builtin.getent:
         database: passwd
         key: nfs-ifpb
@@ -150,7 +150,7 @@
         state: present
       notify: Reiniciar NFS
 
-    - name: Garantir que o serviço NFS está habilitado na inicialização
+    - name: Garantir que o serviço NFS está ativado na inicialização
       ansible.builtin.service:
         name: nfs-kernel-server
         enabled: true
@@ -170,7 +170,7 @@
         state: touch
         mode: "0666"
 
-    - name: Criar o script de monitoramento de login
+    - name: Criar o script para monitoramento de login
       ansible.builtin.copy:
         dest: /usr/local/bin/log_login.sh
         content: |
@@ -186,7 +186,7 @@
           echo "${TIMESTAMP}; ${USER}; ${TTY}; ${IP}" >> "$LOG_FILE"
         mode: "0755"
 
-    - name: Configurar para executar o script no login
+    - name: Configurar execução do script no login
       ansible.builtin.lineinfile:
         path: /etc/profile
         line: "/usr/local/bin/log_login.sh"
