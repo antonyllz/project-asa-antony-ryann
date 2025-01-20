@@ -1,254 +1,204 @@
----
-- hosts: all
+- name: Projeto ASA
+  hosts: all
+  become: true
   tasks:
-    - name: Realizar atualização completa do sistema operacional
-      become: true
+    - name: Atualizar o cache dos pacotes
       ansible.builtin.apt:
-        update_cache: yes
+        update_cache: true
+
+    - name: Realizar upgrade de todos os pacotes
+      ansible.builtin.apt:
         upgrade: dist
 
-    - name: Configurar o hostname
-      become: true
-      hostname:
-        name: "p01-Antony-p02-Ryann"
+    - name: Remover pacotes obsoletos
+      ansible.builtin.apt:
+        autoremove: true
 
-    - name: Criar usuário Antony
-      become: true
-      user:
-        name: "Antony"
+    - name: Configurar hostname
+      ansible.builtin.hostname:
+        name: p01-antony-ryann
+
+    - name: Criar usuário antony
+      ansible.builtin.user:
+        name: antony
         state: present
         shell: /bin/bash
         generate_ssh_key: true
-    
-    - name: Criar usuário Ryann
-      become: true
-      user:
-        name: "Ryann"
+
+    - name: Criar usuário ryann
+      ansible.builtin.user:
+        name: ryann
         state: present
         shell: /bin/bash
         generate_ssh_key: true
-    
-    - name: Cria o grupo ifpb
-      become: true
+
+    - name: Adicionar mensagem de saudação no login
+      ansible.builtin.lineinfile:
+        path: /etc/motd
+        line: "Acesso restrito apenas à pessoas com autorização expressa\nSeu acesso está sendo monitorado !!!"
+        state: present
+
+    - name: Criar o grupo ifpb
       ansible.builtin.group:
         name: ifpb
         state: present
 
-    - name: Criar arquivo de banner de acesso restrito
-      become: true
-      ansible.builtin.copy:
-          dest: /etc/motd
-          content: |
-            Acesso restrito apenas à pessoas com autorização expressa
-            Seu acesso está sendo monitorado !!!
-       
+    - name: Adicionar usuários ao grupo ifpb
+      ansible.builtin.user:
+        name: "{{ item }}"
+        groups: ifpb
+        append: yes
+      loop:
+        - antony
+        - ryann
 
-    - name: Configurar o SSH para usar o banner
-      become: true
+    - name: Permitir autenticação apenas por chave pública
+      ansible.builtin.replace:
+        path: /etc/ssh/sshd_config
+        regexp: "^#?PasswordAuthentication.*"
+        replace: "PasswordAuthentication no"
+      notify: Reiniciar SSH
+
+    - name: Bloquear acesso root via SSH
+      ansible.builtin.replace:
+        path: /etc/ssh/sshd_config
+        regexp: "^#?PermitRootLogin.*"
+        replace: "PermitRootLogin no"
+      notify: Reiniciar SSH
+
+    - name: Permitir acesso ao grupo acesso_ssh
       ansible.builtin.lineinfile:
         path: /etc/ssh/sshd_config
-        regexp: '^#?Banner'
-        line: 'Banner /etc/issue.net'
+        regexp: "^#?AllowGroups.*"
+        line: "AllowGroups acesso_ssh"
+        state: present
+      notify: Reiniciar SSH
 
-    - name: Reiniciar o serviço SSH para aplicar a configuração do banner
-      become: true
-      ansible.builtin.service:
-        name: ssh
-        state: restarted
-
-    - name: Adicionar grupo "ifpb" ao arquivo sudoers
-      become: true
-      ansible.builtin.lineinfile:
-        path: /etc/sudoers
-        regexp: '^%ifpb'
-        line: '%ifpb ALL=(ALL) NOPASSWD:ALL'
-        validate: '/usr/sbin/visudo -cf %s'
-
-    - name: Bloquear o acesso SSH para o usuário root
-      become: true
-      ansible.builtin.lineinfile:
-        path: /etc/ssh/sshd_config
-        regexp: '^#?PermitRootLogin'
-        line: 'PermitRootLogin no'
-
-    - name: Permitir apenas autenticação por chave pública no SSH
-      become: true
-      ansible.builtin.lineinfile:
-        path: /etc/ssh/sshd_config
-        regexp: '^#?PasswordAuthentication'
-        line: 'PasswordAuthentication no'
-
-    - name: Permitir acesso apenas para usuários do grupo acesso_ssh
-      become: true
-      ansible.builtin.lineinfile:
-        path: /etc/ssh/sshd_config
-        regexp: '^#?AllowGroups'
-        line: 'AllowGroups acesso_ssh'
-
-    - name: Gerar chave SSH para o usuário Antony
-      become: true
-      user:
-        name: Antony
-        generate_ssh_key: yes
-        ssh_key_bits: 2048
-        ssh_key_file: "/home/Antony/.ssh/id_rsa"
-      become: yes
-      become_user: Antony
-
-    - name: Gerar chave SSH para o usuário Ryann
-      become: true
-      user:
-        name: Ryann
-        generate_ssh_key: yes
-        ssh_key_bits: 2048
-        ssh_key_file: "/home/Ryann/.ssh/id_rsa"
-      become: yes
-      become_user: Ryann
-
-    - name: Reiniciar o serviço SSH para aplicar as novas configurações
-      become: true
-      ansible.builtin.service:
-        name: ssh
-        state: restarted
-
-    - name: Instalar pacotes necessários para LVM
-      become: true
+    - name: Instalar o LVM2
       ansible.builtin.apt:
         name: lvm2
         state: present
+        update_cache: true
 
-    - name: Criar Physical Volume (PV) nos três discos
-      become: true
-      community.general.lvol:
-        pv: "{{ item }}"
-        state: present
-      loop:
-        - /dev/sdb
-        - /dev/sdc
-        - /dev/sdd
-
-    - name: Criar Volume Group "dados"
-      become: true
-      community.general.lvol:
+    - name: Criar Volume Group
+      community.general.lvg:
         vg: dados
         pvs:
           - /dev/sdb
           - /dev/sdc
           - /dev/sdd
-        state: present
 
-    - name: Criar Logical Volume "sistema" com 15GB
-      become: true
+    - name: Criar Logical Volume
       community.general.lvol:
         vg: dados
         lv: sistema
-        size: 15G
-        state: present
+        size: 15g
 
-    - name: Formatar o Logical Volume "sistema" no formato ext4
-      become: true
+    - name: Formatar o Logical Volume
       community.general.filesystem:
         fstype: ext4
         dev: /dev/dados/sistema
 
-    - name: Criar ponto de montagem /dados
-      become: true
-      file:
+    - name: Criar diretório /dados
+      ansible.builtin.file:
         path: /dados
         state: directory
+        mode: "0755"
 
-    - name: Montar o Logical Volume "sistema" no diretório /dados
-      become: true
+    - name: Adicionar entrada ao fstab
+      ansible.builtin.lineinfile:
+        path: /etc/fstab
+        line: "/dev/dados/sistema /dados ext4 defaults 0 0"
+        state: present
+
+    - name: Montar partição /dados
       ansible.posix.mount:
-        name: /dados
+        path: /dados
         src: /dev/dados/sistema
         fstype: ext4
         state: mounted
 
-    - name: Configurar montagem automática do Logical Volume "sistema" no /etc/fstab
-      become: true
-      ansible.posix.mount:
-        name: /dados
-        src: /dev/dados/sistema
-        fstype: ext4
-        opts: defaults
-        state: present
-
-    - name: Instalar pacotes necessários para o NFS
-      become: true
+    - name: Instalar pacotes necessários para NFS
       ansible.builtin.apt:
         name: nfs-kernel-server
         state: present
 
-    - name: Criar diretório /dados/nfs
-      become: true
+    - name: Criar o usuário "nfs-ifpb" com shell desabilitado
+      ansible.builtin.user:
+        name: nfs-ifpb
+        shell: /usr/sbin/nologin
+        state: present
+
+    - name: Obter informações do usuário "nfs-ifpb"
+      ansible.builtin.getent:
+        database: passwd
+        key: nfs-ifpb
+      register: nfs_user
+
+    - name: Configurar exportação NFS para /dados/nfs
+      ansible.builtin.lineinfile:
+        path: /etc/exports
+        line: >
+          /dados/nfs 192.168.57.0/24(
+          rw,
+          sync,
+          no_subtree_check,
+          all_squash,
+          anonuid={{ nfs_user.ansible_facts.getent_passwd['nfs-ifpb'][1] | int }},
+          anongid={{ nfs_user.ansible_facts.getent_passwd['nfs-ifpb'][2] | int }}
+          )
+        state: present
+      notify: Reiniciar NFS
+
+    - name: Garantir que o serviço NFS está habilitado na inicialização
+      ansible.builtin.service:
+        name: nfs-kernel-server
+        enabled: true
+      notify: Reiniciar NFS
+
+    - name: Criar o diretório /dados/nfs
       ansible.builtin.file:
         path: /dados/nfs
         state: directory
-        owner: root
-        group: root
-        mode: '0755'
-
-    - name: Criar usuário nfs-ifpb sem shell
-      become: true
-      user:
-        name: nfs-ifpb
-        state: present
-        shell: /usr/sbin/nologin
-
-    - name: Configurar as permissões do diretório /dados/nfs
-      become: true
-      ansible.builtin.file:
-        path: /dados/nfs
         owner: nfs-ifpb
         group: nfs-ifpb
-        mode: '0770'
+        mode: "0755"
 
-    - name: Configurar exportação NFS
-      become: true
+    - name: Criar o arquivo de log de acessos
+      ansible.builtin.file:
+        path: /dados/nfs/acessos
+        state: touch
+        mode: "0666"
+
+    - name: Criar o script de monitoramento de login
+      ansible.builtin.copy:
+        dest: /usr/local/bin/log_login.sh
+        content: |
+          #!/bin/bash
+          # Script para monitorar logins
+          LOG_FILE="/dados/nfs/acessos"
+          TIMESTAMP=$(date '+%Y-%m-%d %H:%M')
+          USER=$USER
+          TTY=$SSH_TTY
+          IP=$(who -m | awk '{print $NF}' | tr -d '()')
+
+          # Escreve no arquivo de log
+          echo "${TIMESTAMP}; ${USER}; ${TTY}; ${IP}" >> "$LOG_FILE"
+        mode: "0755"
+
+    - name: Configurar para executar o script no login
       ansible.builtin.lineinfile:
-        path: /etc/exports
-        regexp: '^/dados/nfs'
-        line: '/dados/nfs 192.168.57.0/24(rw,sync,no_subtree_check,all_squash,anonuid=1001,anongid=1001)'
-    
-    - name: Reiniciar o serviço NFS para aplicar as mudanças
-      become: true
+        path: /etc/profile
+        line: "/usr/local/bin/log_login.sh"
+        state: present
+
+  handlers:
+    - name: Reiniciar SSH
+      ansible.builtin.service:
+        name: sshd
+        state: restarted
+
+    - name: Reiniciar NFS
       ansible.builtin.service:
         name: nfs-kernel-server
         state: restarted
-
-    - name: Forçar o esvaziamento do buffer de memória para gravações imediatas no disco
-      become: true
-      ansible.builtin.file:
-        path: /etc/exports
-        regexp: '^/dados/nfs'
-        line: '/dados/nfs 192.168.57.0/24(rw,sync,no_subtree_check,all_squash,anonuid=1001,anongid=1001,flush)'
-
-    - name: Exportar as novas configurações NFS
-      become: true
-      command: exportfs -a
-
-    - name: Verificar se a exportação do NFS foi configurada corretamente
-      become: true
-      command: exportfs -v
-      register: exportfs_output
-
-    - name: Exibir as exportações do NFS
-      become: true
-      debug:
-        var: exportfs_output.stdout_lines
-
-    - name: Criar script para registrar acessos no arquivo /dados/nfs/acessos
-      become: true
-      ansible.builtin.copy:
-        dest: /etc/profile.d/registrar_acessos.sh
-        content: |
-          #!/bin/bash
-          echo "$(date '+%Y-%m-%d %H:%M'); $(whoami); $(tty); $(hostname -I | awk '{print $1}')" >> /dados/nfs/acessos
-        mode: '0755'
-    
-    - name: Reiniciar SSH
-      become: true
-      ansible.builtin.service:
-        name: sshd
-        state: restarted 
