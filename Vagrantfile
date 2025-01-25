@@ -9,9 +9,11 @@ Vagrant.configure("2") do |config|
   end
 
     #  Discos adicionais
-  config.vm.disk :disk, size: "10GB", name: "sdb"
-  config.vm.disk :disk, size: "10GB", name: "sdc"
-  config.vm.disk :disk, size: "10GB", name: "sdd"
+   
+    # Adicionar 3 discos adicionais de 10GB
+   (0..2).each do |i|
+    config.vm.disk :disk, size: "10GB", name: "disk-#{i}"
+   end
 
   config.vm.hostname = "p01-Antony-p02-Ryann"
 
