@@ -219,22 +219,23 @@ Configuração de LVM: Configura Logical Volume Management.
 **Monitoramento de Acesso**
 
 ```yaml
+
 ```
-   - name: Criar o diretório /dados/nfs
+    - name: Criar o diretório /dados/nfs
       ansible.builtin.file:
         path: /dados/nfs
         state: directory
         owner: nfs-ifpb
         group: nfs-ifpb
         mode: "0755"
-`
+
     - name: Criar o arquivo de log de acessos
       ansible.builtin.file:
         path: /dados/nfs/acessos
         state: touch
         mode: "0666"
 
-`    - name: Criar o script de monitoramento de login
+    - name: Criar o script de monitoramento de login
       ansible.builtin.copy:
         dest: /usr/local/bin/log_login.sh
         content: |
@@ -246,24 +247,24 @@ Configuração de LVM: Configura Logical Volume Management.
           TTY=$SSH_TTY
           IP=$(who -m | awk '{print $NF}' | tr -d '()')
 
-``        # Escreve no arquivo de log
- `         echo "${TIMESTAMP}; ${USER}; ${TTY}; ${IP}" >> "$LOG_FILE"
+        # Escreve no arquivo de log
+          echo "${TIMESTAMP}; ${USER}; ${TTY}; ${IP}" >> "$LOG_FILE"
         mode: "0755"
 
- `   - name: Configurar para executar o script no login
+    - name: Configurar para executar o script no login
       ansible.builtin.lineinfile:
         path: /etc/profile
         line: "/usr/local/bin/log_login.sh"
         state: present
 
- `    handlers:
+     handlers:
     # Handlers de SSH
     - name: Reiniciar SSH
       ansible.builtin.service:
         name: sshd
         state: restarted
 
-`    # Handlers de NFS
+    # Handlers de NFS
     - name: Reiniciar NFS
       ansible.builtin.service:
         name: nfs-kernel-server
