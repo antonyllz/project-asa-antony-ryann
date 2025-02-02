@@ -1,41 +1,61 @@
-- name: Projeto ASA
+- name: Projeto de administração de sistemas aberto
   hosts: all
   become: true
   tasks:
-    - name: Atualização geral nos pacotes
+    # 2.2.1 Atualização do Sistema Operacional
+    - name: Atualizar o cache dos pacotes
       ansible.builtin.apt:
         update_cache: true
 
-    - name: Realizar atualização completa dos pacotes
+    - name: Realizar upgrade de todos os pacotes
       ansible.builtin.apt:
         upgrade: dist
 
-    - name: Remover pacotes desnecessários
+    - name: Remover pacotes obsoletos
       ansible.builtin.apt:
         autoremove: true
 
-    - name: Configuração do hostname
+    # 2.2.2 Configuração do Hostname
+    - name: Configurar hostname
       ansible.builtin.hostname:
-        name: p01-antony-ryann
+        name: p01-ryann-antony
 
-    - name: Criar usuário Antony
-      ansible.builtin.user:
-        name: antony
-        state: present
-        shell: /bin/bash
-        generate_ssh_key: true
-
-    - name: Criar usuário Ryann
+    # 2.2.3 Criando usuários
+    - name: Criar usuário ryann
       ansible.builtin.user:
         name: ryann
         state: present
         shell: /bin/bash
-        generate_ssh_key: true
 
-    - name: Adicionar mensagem de boas-vindas no login
+    - name: Adicionar chave pública ao authorized_keys do usuário ryann
+      ansible.posix.authorized_key:
+        user: ryann
+        state: present
+        key: "{{ lookup('file', './Keys-SSH/ryann.pub') }}"
+
+    - name: Criar usuário antony
+      ansible.builtin.user:
+        name: antony
+        state: present
+        shell: /bin/bash
+
+    - name: Adicionar chave pública ao authorized_keys do usuário antony
+      ansible.posix.authorized_key:
+        user: antony
+        state: present
+        key: "{{ lookup('file', './Keys-SSH/antony.pub') }}"
+
+    # 2.2.4 Mensagem de saudação
+    - name: Adicionar mensagem de saudação no login
       ansible.builtin.lineinfile:
         path: /etc/motd
         line: "Acesso restrito apenas à pessoas com autorização expressa\nSeu acesso está sendo monitorado !!!"
+        state: present
+
+    # 2.2.5 Configuração de SUDO e criação de grupos
+    - name: Criar o grupo acesso_ssh
+      ansible.builtin.group:
+        name: acesso_ssh
         state: present
 
     - name: Criar o grupo ifpb
@@ -43,30 +63,61 @@
         name: ifpb
         state: present
 
-    - name: Incluir usuários no grupo ifpb
+    - name: Adicionar o usuário "ryann" ao grupo "acesso_ssh"
+      ansible.builtin.user:
+        name: ryann
+        groups: acesso_ssh
+        append: true
+
+    - name: Adicionar o usuário "antony" ao grupo "acesso_ssh"
+      ansible.builtin.user:
+        name: antony
+        groups: acesso_ssh
+        append: true
+
+    - name: Adicionar o usuário "ryann" ao grupo "ifpb"
+      ansible.builtin.user:
+        name: ryann
+        groups: ifpb
+        append: true
+
+    - name: Adicionar o usuário "antony" ao grupo "ifpb"
+      ansible.builtin.user:
+        name: antony
+        groups: ifpb
+        append: true
+
+    - name: Adicionar usuários ao grupo ifpb
       ansible.builtin.user:
         name: "{{ item }}"
         groups: ifpb
         append: yes
       loop:
-        - antony
         - ryann
+        - antony
 
-    - name: Permitir autenticação exclusivamente por chave pública
+    - name: Permite que usuarios do grupo ifpb usem o sudo
+      ansible.builtin.lineinfile:
+        path: /etc/sudoers
+        line: "%ifpb ALL=(ALL) NOPASSWD: ALL"
+        validate: "/usr/sbin/visudo -cf %s"
+
+    # 2.2.6 Configuração de SSH
+    - name: Permitir autenticação apenas por chave pública
       ansible.builtin.replace:
         path: /etc/ssh/sshd_config
         regexp: "^#?PasswordAuthentication.*"
         replace: "PasswordAuthentication no"
       notify: Reiniciar SSH
 
-    - name: Desabilitar acesso root via SSH
+    - name: Bloquear acesso root via SSH
       ansible.builtin.replace:
         path: /etc/ssh/sshd_config
         regexp: "^#?PermitRootLogin.*"
         replace: "PermitRootLogin no"
       notify: Reiniciar SSH
 
-    - name: Autorizar acesso ao grupo acesso_ssh
+    - name: Permitir acesso ao grupo acesso_ssh
       ansible.builtin.lineinfile:
         path: /etc/ssh/sshd_config
         regexp: "^#?AllowGroups.*"
@@ -74,13 +125,14 @@
         state: present
       notify: Reiniciar SSH
 
+    # 2.2.7 Configuração de LVM
     - name: Instalar o LVM2
       ansible.builtin.apt:
         name: lvm2
         state: present
         update_cache: true
 
-    - name: Criar o Volume Group
+    - name: Criar Volume Group
       community.general.lvg:
         vg: dados
         pvs:
@@ -88,7 +140,7 @@
           - /dev/sdc
           - /dev/sdd
 
-    - name: Criar o Logical Volume
+    - name: Criar Logical Volume
       community.general.lvol:
         vg: dados
         lv: sistema
@@ -99,37 +151,38 @@
         fstype: ext4
         dev: /dev/dados/sistema
 
-    - name: Criar o diretório /dados
+    - name: Criar diretório /dados
       ansible.builtin.file:
         path: /dados
         state: directory
         mode: "0755"
 
-    - name: Adicionar linha ao fstab
+    - name: Adicionar entrada ao fstab
       ansible.builtin.lineinfile:
         path: /etc/fstab
         line: "/dev/dados/sistema /dados ext4 defaults 0 0"
         state: present
 
-    - name: Montar a partição /dados
+    - name: Montar partição /dados
       ansible.posix.mount:
         path: /dados
         src: /dev/dados/sistema
         fstype: ext4
         state: mounted
 
+    # 2.2.8 Configuração de NFS
     - name: Instalar pacotes necessários para NFS
       ansible.builtin.apt:
         name: nfs-kernel-server
         state: present
 
-    - name: Criar o usuário "nfs-ifpb" com shell desativado
+    - name: Criar o usuário "nfs-ifpb" com shell desabilitado
       ansible.builtin.user:
         name: nfs-ifpb
         shell: /usr/sbin/nologin
         state: present
 
-    - name: Obter dados do usuário "nfs-ifpb"
+    - name: Obter informações do usuário "nfs-ifpb"
       ansible.builtin.getent:
         database: passwd
         key: nfs-ifpb
@@ -138,24 +191,17 @@
     - name: Configurar exportação NFS para /dados/nfs
       ansible.builtin.lineinfile:
         path: /etc/exports
-        line: >
-          /dados/nfs 192.168.57.0/24(
-          rw,
-          sync,
-          no_subtree_check,
-          all_squash,
-          anonuid={{ nfs_user.ansible_facts.getent_passwd['nfs-ifpb'][1] | int }},
-          anongid={{ nfs_user.ansible_facts.getent_passwd['nfs-ifpb'][2] | int }}
-          )
+        line: /dados/nfs 192.168.57.0/24(rw,sync,no_subtree_check,all_squash,anonuid={{ nfs_user.ansible_facts.getent_passwd['nfs-ifpb'][1] | int }},anongid={{ nfs_user.ansible_facts.getent_passwd['nfs-ifpb'][2] | int }})
         state: present
       notify: Reiniciar NFS
 
-    - name: Garantir que o serviço NFS está ativado na inicialização
+    - name: Garantir que o serviço NFS está habilitado na inicialização
       ansible.builtin.service:
         name: nfs-kernel-server
         enabled: true
       notify: Reiniciar NFS
 
+    # 2.2.9 Monitoramento de acesso
     - name: Criar o diretório /dados/nfs
       ansible.builtin.file:
         path: /dados/nfs
@@ -170,7 +216,7 @@
         state: touch
         mode: "0666"
 
-    - name: Criar o script para monitoramento de login
+    - name: Criar o script de monitoramento de login
       ansible.builtin.copy:
         dest: /usr/local/bin/log_login.sh
         content: |
@@ -186,18 +232,20 @@
           echo "${TIMESTAMP}; ${USER}; ${TTY}; ${IP}" >> "$LOG_FILE"
         mode: "0755"
 
-    - name: Configurar execução do script no login
+    - name: Configurar para executar o script no login
       ansible.builtin.lineinfile:
         path: /etc/profile
         line: "/usr/local/bin/log_login.sh"
         state: present
 
   handlers:
+    # Handlers de SSH
     - name: Reiniciar SSH
       ansible.builtin.service:
         name: sshd
         state: restarted
 
+    # Handlers de NFS
     - name: Reiniciar NFS
       ansible.builtin.service:
         name: nfs-kernel-server
