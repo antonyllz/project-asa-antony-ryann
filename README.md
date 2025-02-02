@@ -219,8 +219,6 @@ Configuração de LVM: Configura Logical Volume Management.
 **Monitoramento de Acesso**
 
 ```yaml
-
-```
     - name: Criar o diretório /dados/nfs
       ansible.builtin.file:
         path: /dados/nfs
