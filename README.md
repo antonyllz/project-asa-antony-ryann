@@ -298,3 +298,10 @@ Após isso é somente executar o comando SSH usando a chave criada e a porta ass
 ```ruby
 ssh -i chaaves/{nome_do_arquivo} {usuário}@127.0.0.1 -p 2222
 
+````
+Após isso é necessário que a máquina conheça o usuário
+```ruby
+ssh-keygen -f "/home/{usuário_local}/.ssh/known_hosts" -R "[127.0.0.1]:2222"
+
+```
+Para ambos os usuário as chaves SSH para conexão foram inseridas com os valores: **123**
