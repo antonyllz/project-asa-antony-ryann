@@ -1,5 +1,7 @@
 Vagrant.configure("2") do |config|
-  config.vm.box = "generic/debian12"
+  config.vm.box = "debian/bookworm64"
+  config.vbguest.auto_update = false
+  
 
   config.vm.provider "virtualbox" do |vb|
     vb.name = "p01-Antony-p02-Ryann"
@@ -21,5 +23,6 @@ Vagrant.configure("2") do |config|
 
   config.vm.provision "ansible" do |ansible|
     ansible.playbook = "playbook.yml"
+    ansible.compatibility_mode = "2.0"
   end
 end
