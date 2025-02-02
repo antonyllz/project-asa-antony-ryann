@@ -31,7 +31,7 @@
       ansible.posix.authorized_key:
         user: ryann
         state: present
-        key: "{{ lookup('file', './Keys-SSH/ryann.pub') }}"
+        key: "{{ lookup('file', './chaves/ryann.pub') }}"
 
     - name: Criar usuário antony
       ansible.builtin.user:
@@ -43,7 +43,7 @@
       ansible.posix.authorized_key:
         user: antony
         state: present
-        key: "{{ lookup('file', './Keys-SSH/antony.pub') }}"
+        key: "{{ lookup('file', './chaves/antony.pub') }}"
 
     # 2.2.4 Mensagem de saudação
     - name: Adicionar mensagem de saudação no login
