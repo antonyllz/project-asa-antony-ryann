@@ -284,10 +284,6 @@ Instalar plugin para manter as VirtualBox Guest Additions atualizadas automatica
 ```ruby
 vagrant plugin install vagrant-vbguest
 ```
-Digite o comando:
-```
-vagrant up
- ```
 bash
    ```ruby
 vagrant up
