@@ -110,158 +110,165 @@ Descrição das tarefas no playbook
 **Configuração do SSH: Ajusta as configurações de segurança do SSH.**
 
    ```yaml
-- name: Configurar o SSH para usar o banner
-  lineinfile:
-    path: /etc/ssh/sshd_config
-    regexp: '^#?Banner'
-    line: 'Banner /etc/issue.net'
 
-- name: Bloquear o acesso SSH para o usuário root
-  lineinfile:
-    path: /etc/ssh/sshd_config
-    regexp: '^#?PermitRootLogin'
-    line: 'PermitRootLogin no'
+    - name: Permitir autenticação apenas por chave pública
+      ansible.builtin.replace:
+        path: /etc/ssh/sshd_config
+        regexp: "^#?PasswordAuthentication.*"
+        replace: "PasswordAuthentication no"
+      notify: Reiniciar SSH
 
-- name: Permitir apenas autenticação por chave pública no SSH
-  lineinfile:
-    path: /etc/ssh/sshd_config
-    regexp: '^#?PasswordAuthentication'
-    line: 'PasswordAuthentication no'
+    - name: Bloquear acesso root via SSH
+      ansible.builtin.replace:
+        path: /etc/ssh/sshd_config
+        regexp: "^#?PermitRootLogin.*"
+        replace: "PermitRootLogin no"
+      notify: Reiniciar SSH
 
-- name: Permitir acesso apenas para usuários do grupo acesso_ssh
-  lineinfile:
-    path: /etc/ssh/sshd_config
-    regexp: '^#?AllowGroups'
-    line: 'AllowGroups acesso_ssh'
-
-- name: Criar diretório .ssh para Antony
-  file:
-    path: /home/Antony/.ssh
-    state: directory
-    owner: Antony
-    group: Antony
-    mode: '0700'
-
-- name: Gerar chave SSH para Antony
-  command: ssh-keygen -t rsa -b 2048 -f /home/Antony/.ssh/id_rsa -N ""
-  args:
-    creates: /home/Antony/.ssh/id_rsa
-
-- name: Configurar permissões das chaves SSH de Antony
-  file:
-    path: /home/Antony/.ssh/id_rsa
-    owner: Antony
-    group: Antony
-    mode: '0600'
-
-# Gerar chave SSH para o usuário Ryann
-- name: Criar diretório .ssh para Ryann
-  file:
-    path: /home/Ryann/.ssh
-    state: directory
-    owner: Ryann
-    group: Ryann
-    mode: '0700'
-
-- name: Gerar chave SSH para Ryann
-  command: ssh-keygen -t rsa -b 2048 -f /home/Ryann/.ssh/id_rsa -N ""
-  args:
-    creates: /home/Ryann/.ssh/id_rsa
-
-- name: Configurar permissões das chaves SSH de Ryann
-  file:
-    path: /home/Ryann/.ssh/id_rsa
-    owner: Ryann
-    group: Ryann
-    mode: '0600'
-
-- name: Adicionar chave pública de Antony ao authorized_keys
-  copy:
-    src: /home/Antony/.ssh/id_rsa.pub
-    dest: /home/Antony/.ssh/authorized_keys
-    owner: Antony
-    group: Antony
-    mode: '0644'
-
-- name: Adicionar chave pública de Ryann ao authorized_keys
-  copy:
-    src: /home/Ryann/.ssh/id_rsa.pub
-    dest: /home/Ryann/.ssh/authorized_keys
-    owner: Ryann
-    group: Ryann
-    mode: '0644'
+    - name: Permitir acesso ao grupo acesso_ssh
+      ansible.builtin.lineinfile:
+        path: /etc/ssh/sshd_config
+        regexp: "^#?AllowGroups.*"
+        line: "AllowGroups acesso_ssh"
+        state: present
+      notify: Reiniciar SSH
 
 
 `````
 Configuração de LVM: Configura Logical Volume Management.
 
    ```yaml
-- name: Criar Physical Volume (PV) nos três discos
-  lvol:
-    pv: "{{ item }}"
-    state: present
-  loop:
-    - /dev/sdb
-    - /dev/sdc
-    - /dev/sdd
+ - name: Instalar o LVM2
+      ansible.builtin.apt:
+        name: lvm2
+        state: present
+        update_cache: true
 
-- name: Criar Volume Group "dados"
-  lvol:
-    vg: dados
-    pvs:
-      - /dev/sda
-      - /dev/sdb
-      - /dev/sdc
-    state: present
+    - name: Criar Volume Group
+      community.general.lvg:
+        vg: dados
+        pvs:
+          - /dev/sdb
+          - /dev/sdc
+          - /dev/sdd
 
-- name: Criar Logical Volume "sistema" com 15GB
-  lvol:
-    vg: dados
-    lv: sistema
-    size: 15G
-    state: present
+    - name: Criar Logical Volume
+      community.general.lvol:
+        vg: dados
+        lv: sistema
+        size: 15g
 
-- name: Formatar o Logical Volume "sistema" no formato ext4
-  filesystem:
-    fstype: ext4
-    dev: /dev/dados/sistema
+    - name: Formatar o Logical Volume
+      community.general.filesystem:
+        fstype: ext4
+        dev: /dev/dados/sistema
 
-- name: Adicionar /dev/dados/sistema ao /etc/fstab
-      blockinfile:
+    - name: Criar diretório /dados
+      ansible.builtin.file:
+        path: /dados
+        state: directory
+        mode: "0755"
+
+    - name: Adicionar entrada ao fstab
+      ansible.builtin.lineinfile:
         path: /etc/fstab
-        block: |
-          /dev/dados/sistema  /dados  ext4  defaults  0  0
+        line: "/dev/dados/sistema /dados ext4 defaults 0 0"
+        state: present
 
-- name: Montar o Logical Volume "sistema" no diretório /dados
-  mount:
-    name: /dados
-    src: /dev/dados/sistema
-    fstype: ext4
-    state: mounted
+    - name: Montar partição /dados
+      ansible.posix.mount:
+        path: /dados
+        src: /dev/dados/sistema
+        fstype: ext4
+        state: mounted
+
 ````
 **Configuração de NFS: Configura o compartilhamento via NFS.**
 ```yaml
-- name: Instalar pacotes necessários para o NFS
-  apt:
-    name: nfs-kernel-server
-    state: present
+   - name: Instalar pacotes necessários para NFS
+      ansible.builtin.apt:
+        name: nfs-kernel-server
+        state: present
 
-- name: Configurar as permissões do diretório /dados/nfs
-  file:
-    path: /dados/nfs
-    owner: nfs-ifpb
-    group: nfs-ifpb
-    mode: '0770'
+    - name: Criar o usuário "nfs-ifpb" com shell desabilitado
+      ansible.builtin.user:
+        name: nfs-ifpb
+        shell: /usr/sbin/nologin
+        state: present
 
-- name: Configurar exportação NFS
-  lineinfile:
-    path: /etc/exports
-    regexp: '^/dados/nfs'
-    line: '/dados/nfs 192.168.57.0/24(rw,sync,no_subtree_check,all_squash,anonuid=1001,anongid=1001)'
+    - name: Obter informações do usuário "nfs-ifpb"
+      ansible.builtin.getent:
+        database: passwd
+        key: nfs-ifpb
+      register: nfs_user
 
-- name: Exportar as novas configurações NFS
-  command: exportfs -a
+    - name: Configurar exportação NFS para /dados/nfs
+      ansible.builtin.lineinfile:
+        path: /etc/exports
+        line: /dados/nfs 192.168.57.0/24(rw,sync,no_subtree_check,all_squash,anonuid={{ nfs_user.ansible_facts.getent_passwd['nfs-ifpb'][1] | int }},anongid={{ nfs_user.ansible_facts.getent_passwd['nfs-ifpb'][2] | int }})
+        state: present
+      notify: Reiniciar NFS
+
+    - name: Garantir que o serviço NFS está habilitado na inicialização
+      ansible.builtin.service:
+        name: nfs-kernel-server
+        enabled: true
+      notify: Reiniciar NFS
+
 ````
+**Monitoramento de Acesso**
+
+```yaml
+```
+   - name: Criar o diretório /dados/nfs
+      ansible.builtin.file:
+        path: /dados/nfs
+        state: directory
+        owner: nfs-ifpb
+        group: nfs-ifpb
+        mode: "0755"
+`
+    - name: Criar o arquivo de log de acessos
+      ansible.builtin.file:
+        path: /dados/nfs/acessos
+        state: touch
+        mode: "0666"
+
+`    - name: Criar o script de monitoramento de login
+      ansible.builtin.copy:
+        dest: /usr/local/bin/log_login.sh
+        content: |
+          #!/bin/bash
+          # Script para monitorar logins
+          LOG_FILE="/dados/nfs/acessos"
+          TIMESTAMP=$(date '+%Y-%m-%d %H:%M')
+          USER=$USER
+          TTY=$SSH_TTY
+          IP=$(who -m | awk '{print $NF}' | tr -d '()')
+
+``        # Escreve no arquivo de log
+ `         echo "${TIMESTAMP}; ${USER}; ${TTY}; ${IP}" >> "$LOG_FILE"
+        mode: "0755"
+
+ `   - name: Configurar para executar o script no login
+      ansible.builtin.lineinfile:
+        path: /etc/profile
+        line: "/usr/local/bin/log_login.sh"
+        state: present
+
+ `    handlers:
+    # Handlers de SSH
+    - name: Reiniciar SSH
+      ansible.builtin.service:
+        name: sshd
+        state: restarted
+
+`    # Handlers de NFS
+    - name: Reiniciar NFS
+      ansible.builtin.service:
+        name: nfs-kernel-server
+        state: restarted''
+
 **Como Executar o Projeto**
 
 Instale o Vagrant e o VirtualBox no seu sistema.
@@ -270,8 +277,29 @@ Clone este repositório ou baixe os arquivos.
 
 Execute o seguinte comando no diretório onde o Vagrantfile está localizado:
 
+Instale os requerimentos:
+```ruby
+    ansible-galaxy install -r requirements.yml
+```
+Instalar plugin para manter as VirtualBox Guest Additions atualizadas automaticamente no sistema convidado (guest) ao usar o Vagrant
+```ruby
+vagrant plugin install vagrant-vbguest
+```
+Digite o comando:
+```
+vagrant up
+ ```
 bash
    ```ruby
 vagrant up
 ````
 Isso provisionará a máquina virtual com as especificações do projeto, e o Ansible será automaticamente invocado para configurar o sistema.
+
+**Para o acessor SSH às máquinas segue as instruções para cada usuário**
+```ruby
+ssh-keygen -t ed25519 -C "{Nome do usuário}" -f ~/.ssh/{nome_do_usuário}
+````
+Após isso é somente executar o comando SSH usando a chave criada e a porta associada
+```ruby
+ssh -i chaaves/{nome_do_arquivo} {usuário}@127.0.0.1 -p 2222
+
