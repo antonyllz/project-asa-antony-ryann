@@ -296,7 +296,7 @@ ssh-keygen -t ed25519 -C "{Nome do usuário}" -f ~/.ssh/{nome_do_usuário}
 ````
 Após isso é somente executar o comando SSH usando a chave criada e a porta associada
 ```ruby
-ssh -i chaaves/{nome_do_arquivo} {usuário}@127.0.0.1 -p 2222
+ssh -i chaves/{nome_do_arquivo} {usuário}@127.0.0.1 -p 2222
 
 ````
 Após isso é necessário que a máquina conheça o usuário
