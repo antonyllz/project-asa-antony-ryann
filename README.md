@@ -268,6 +268,7 @@ Configuração de LVM: Configura Logical Volume Management.
         name: nfs-kernel-server
         state: restarted''
 
+````
 **Como Executar o Projeto**
 
 Instale o Vagrant e o VirtualBox no seu sistema.
@@ -275,6 +276,7 @@ Instale o Vagrant e o VirtualBox no seu sistema.
 Clone este repositório ou baixe os arquivos.
 
 Execute o seguinte comando no diretório onde o Vagrantfile está localizado:
+````
 ````
 Instale os requerimentos:
    ```ruby
