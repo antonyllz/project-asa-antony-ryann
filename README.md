@@ -274,9 +274,9 @@ Configuração de LVM: Configura Logical Volume Management.
 Instale o Vagrant e o VirtualBox no seu sistema.
 
 Clone este repositório ou baixe os arquivos.
-
-Execute o seguinte comando no diretório onde o Vagrantfile está localizado:
 ````
+````
+Execute o seguinte comando no diretório onde o Vagrantfile está localizado:
 ````
 Instale os requerimentos:
    ```ruby
