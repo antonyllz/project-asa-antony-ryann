@@ -272,14 +272,28 @@ Configuração de LVM: Configura Logical Volume Management.
 **Como Executar o Projeto**
 
 Instale o Vagrant e o VirtualBox no seu sistema.
+````ruby
+#Comandos para instalação do Virtualbox
 
-Clone este repositório ou baixe os arquivos.
+sudo apt update
+sudo apt install -y virtualbox
+
+#Comandos para instalação do Vagrant
+
+curl -fsSL https://apt.releases.hashicorp.com/gpg | sudo tee /usr/share/keyrings/hashicorp-archive-keyring.gpg
+echo "deb [signed-by=/usr/share/keyrings/hashicorp-archive-keyring.gpg] https://apt.releases.hashicorp.com $(lsb_release -cs) main" | sudo tee /etc/apt/sources.list.d/hashicorp.list
+sudo apt update
+sudo apt install -y vagrant
+
 ````
+Clone este repositório ou baixe os arquivos.
+````ruby
+git clone https://github.com/antonyllz/project-asa-antony-ryann.git
 ````
 Execute o seguinte comando no diretório onde o Vagrantfile está localizado:
-````
+``
 Instale os requerimentos:
-   ```ruby
+   ````ruby
     ansible-galaxy install -r requirements.yml
    ````
 
