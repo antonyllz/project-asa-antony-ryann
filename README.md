@@ -279,7 +279,8 @@ Execute o seguinte comando no diretório onde o Vagrantfile está localizado:
 Instale os requerimentos:
 ```ruby
     ansible-galaxy install -r requirements.yml
-```
+````
+````
 Instalar plugin para manter as VirtualBox Guest Additions atualizadas automaticamente no sistema convidado (guest) ao usar o Vagrant
 ```ruby
 vagrant plugin install vagrant-vbguest
