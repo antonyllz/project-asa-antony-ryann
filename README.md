@@ -275,12 +275,12 @@ Instale o Vagrant e o VirtualBox no seu sistema.
 Clone este repositório ou baixe os arquivos.
 
 Execute o seguinte comando no diretório onde o Vagrantfile está localizado:
-
+````
 Instale os requerimentos:
-```ruby
+   ```ruby
     ansible-galaxy install -r requirements.yml
-````
-````
+   ````
+
 Instalar plugin para manter as VirtualBox Guest Additions atualizadas automaticamente no sistema convidado (guest) ao usar o Vagrant
 ```ruby
 vagrant plugin install vagrant-vbguest
